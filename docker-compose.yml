@@ -1,0 +1,28 @@
+# Local development services. Start with: docker compose up -d
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: destra
+      POSTGRES_PASSWORD: destra
+      POSTGRES_DB: destra
+    ports: ["5432:5432"]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Creates destra_app and the destra_api login role on first start.
+      - ./scripts/setup-local-db.sql:/docker-entrypoint-initdb.d/01-roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U destra"]
+      interval: 5s
+      retries: 10
+
+  temporal:
+    # Temporal CLI dev server (in-memory). Pin a version before relying on it.
+    image: temporalio/temporal:latest
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--ui-port", "8233"]
+    ports:
+      - "7233:7233" # gRPC
+      - "8233:8233" # Web UI
+
+volumes:
+  postgres-data:
