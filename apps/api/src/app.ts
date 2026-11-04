@@ -7,6 +7,7 @@ import type { ApiEnv } from "./env.js";
 import { registerAuthRoutes } from "./plugins/auth-routes.js";
 import { createGuards, HttpError } from "./plugins/tenant.js";
 import { healthRoutes } from "./routes/health.js";
+import { reviewRoutes } from "./routes/review.js";
 import { workspaceRoutes } from "./routes/workspaces.js";
 
 export interface AppDeps {
@@ -43,6 +44,7 @@ export async function buildApp({ env, db, logger = true }: AppDeps): Promise<{
   await registerAuthRoutes(app, auth);
   await healthRoutes(app, db);
   await workspaceRoutes(app, db, guards);
+  await reviewRoutes(app, db, guards);
 
   return { app, auth };
 }

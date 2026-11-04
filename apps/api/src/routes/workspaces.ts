@@ -136,6 +136,7 @@ export async function workspaceRoutes(
       name: result.workspace?.name,
       autonomyLevel: result.workspace?.autonomyLevel,
       timezone: result.workspace?.timezone,
+      publishingPausedAt: result.workspace?.publishingPausedAt ?? null,
       role: access.role,
       professionalProfile: result.profile ?? null,
     };

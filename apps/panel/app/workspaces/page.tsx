@@ -1,14 +1,17 @@
 "use client";
 
+import { ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { Button, Card, Field, Input, Logo } from "@/components/ui";
 import { ApiError, api, type WorkspaceSummary } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 
 const ROLE_LABELS: Record<WorkspaceSummary["role"], string> = {
-  owner: "Proprietário(a)",
-  editor: "Editor(a)",
-  approver: "Aprovador(a)",
+  owner: "Proprietária(o)",
+  editor: "Edição",
+  approver: "Aprovação",
   viewer: "Leitura",
 };
 
@@ -22,10 +25,7 @@ export default function WorkspacesPage() {
       const data = await api<{ workspaces: WorkspaceSummary[] }>("/v1/workspaces");
       setWorkspaces(data.workspaces);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        router.replace("/entrar");
-        return;
-      }
+      if (err instanceof ApiError && err.status === 401) return router.replace("/entrar");
       setError("Não foi possível carregar seus espaços.");
     }
   }, [router]);
@@ -39,55 +39,72 @@ export default function WorkspacesPage() {
     const form = event.currentTarget;
     const name = String(new FormData(form).get("name"));
     try {
-      await api("/v1/workspaces", { method: "POST", body: JSON.stringify({ name }) });
-      form.reset();
-      await load();
+      const created = await api<{ id: string }>("/v1/workspaces", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      });
+      router.push(`/w/${created.id}/perfil`);
     } catch {
       setError("Não foi possível criar o espaço.");
     }
   }
 
-  async function onSignOut() {
+  async function signOut() {
     await authClient.signOut();
     router.replace("/entrar");
   }
 
   return (
-    <main className="stack">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1>Seus espaços</h1>
-        <button type="button" className="secondary" onClick={onSignOut}>
+    <main className="mx-auto max-w-2xl px-4 py-12">
+      <div className="mb-8 flex items-center justify-between">
+        <Logo />
+        <Button variant="ghost" onClick={signOut}>
           Sair
-        </button>
+        </Button>
       </div>
+      <h1 className="text-[28px] font-bold leading-9 tracking-tight">Seus espaços</h1>
+      <p className="mt-1 text-ink-2">
+        Cada espaço reúne o perfil, as redes e os posts de um profissional.
+      </p>
+
       {error && (
-        <p className="error" role="alert">
+        <p role="alert" className="mt-4 text-sm font-medium text-block">
           {error}
         </p>
       )}
-      <section className="card">
+
+      <Card className="mt-6 divide-y divide-line">
         {workspaces === null ? (
-          <p className="muted">Carregando…</p>
+          <p className="p-5 text-ink-2">Carregando…</p>
         ) : workspaces.length === 0 ? (
-          <p className="muted">Você ainda não tem um espaço. Crie o primeiro abaixo.</p>
+          <p className="p-5 text-ink-2">Você ainda não tem um espaço. Crie o primeiro abaixo.</p>
         ) : (
-          <ul className="list">
-            {workspaces.map((w) => (
-              <li key={w.id}>
-                <strong>{w.name}</strong>
-                <span className="muted">{ROLE_LABELS[w.role]}</span>
-              </li>
-            ))}
-          </ul>
+          workspaces.map((w) => (
+            <Link
+              key={w.id}
+              href={`/w/${w.id}/revisao`}
+              className="flex items-center justify-between p-5 hover:bg-canvas"
+            >
+              <span>
+                <span className="block font-semibold text-ink">{w.name}</span>
+                <span className="text-sm text-ink-2">{ROLE_LABELS[w.role]}</span>
+              </span>
+              <ChevronRight aria-hidden className="size-5 text-ink-3" />
+            </Link>
+          ))
         )}
-      </section>
-      <form className="card stack" onSubmit={onCreate} style={{ maxWidth: 400 }}>
-        <label>
-          Nome do espaço
-          <input name="name" required placeholder="Dra. Ana Souza" />
-        </label>
-        <button type="submit">Criar espaço</button>
-      </form>
+      </Card>
+
+      <Card className="mt-6 p-5">
+        <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={onCreate}>
+          <div className="flex-1">
+            <Field label="Nome do novo espaço">
+              <Input name="name" required placeholder="Dra. Ana Souza" />
+            </Field>
+          </div>
+          <Button type="submit">Criar espaço</Button>
+        </form>
+      </Card>
     </main>
   );
 }

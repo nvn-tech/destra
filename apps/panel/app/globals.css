@@ -1,119 +1,74 @@
-:root {
-  --bg: #f7f8fa;
-  --surface: #ffffff;
-  --border: #e4e7ec;
-  --primary: #0f766e;
-  --primary-hover: #115e59;
-  --text: #101828;
-  --text-secondary: #475467;
-  --muted: #98a2b3;
-  --danger: #f04438;
-  --radius-card: 12px;
-  --radius-input: 8px;
+@import "tailwindcss";
+@import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
+/*
+ * Destra design tokens. Based on the Stitch "Clinical Governance" system,
+ * adjusted for WCAG AA contrast (text colors are one step darker than the mockups).
+ */
+@theme {
+  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Surfaces */
+  --color-canvas: #f8fafc;
+  --color-card: #ffffff;
+  --color-subtle: #f1f5f9;
+  --color-line: #e2e8f0;
+  --color-line-strong: #cbd5e1;
+
+  /* Text */
+  --color-ink: #0f172a;
+  --color-ink-2: #475569;
+  --color-ink-3: #64748b;
+
+  /* Brand: pine slate for primary actions, teal for focus and accents */
+  --color-pine: #0b3b3c;
+  --color-pine-hover: #0f4c4e;
+  --color-pine-soft: #e6f0f0;
+  --color-teal: #0f766e;
+  --color-focus: #14b8a6;
+
+  /* Compliance triad: always paired with an icon and a word, never color alone */
+  --color-pass: #047857;
+  --color-pass-bg: #ecfdf5;
+  --color-pass-line: #a7f3d0;
+  --color-review: #92400e;
+  --color-review-icon: #d97706;
+  --color-review-bg: #fffbeb;
+  --color-review-line: #fde68a;
+  --color-block: #991b1b;
+  --color-block-icon: #dc2626;
+  --color-block-bg: #fef2f2;
+  --color-block-line: #fecaca;
+  --color-flag: #fef3c7;
+  --color-flag-line: #f59e0b;
+
+  --radius-control: 0.5rem;
+  --radius-panel: 1rem;
+
+  --shadow-card: 0 1px 3px rgb(15 23 42 / 0.04), 0 1px 2px rgb(15 23 42 / 0.02);
+  --shadow-raised: 0 4px 6px -1px rgb(15 23 42 / 0.05), 0 2px 4px -2px rgb(15 23 42 / 0.03);
+  --shadow-overlay: 0 20px 25px -5px rgb(15 23 42 / 0.08), 0 8px 10px -6px rgb(15 23 42 / 0.04);
 }
 
-* {
-  box-sizing: border-box;
-}
+@layer base {
+  html {
+    color-scheme: light;
+  }
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 14px;
-  line-height: 20px;
-}
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 22px;
+    -webkit-font-smoothing: antialiased;
+  }
 
-main {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 48px 16px;
-}
-
-h1 {
-  font-size: 28px;
-  line-height: 36px;
-  font-weight: 600;
-  margin: 0 0 24px;
-}
-
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: 24px;
-}
-
-.stack {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-input {
-  font: inherit;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-input);
-  background: var(--surface);
-  color: var(--text);
-}
-
-input:focus-visible,
-button:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
-button {
-  font: inherit;
-  font-weight: 500;
-  padding: 10px 16px;
-  border-radius: var(--radius-input);
-  border: 1px solid var(--primary);
-  background: var(--primary);
-  color: #fff;
-  cursor: pointer;
-}
-
-button:hover {
-  background: var(--primary-hover);
-}
-
-button.secondary {
-  background: var(--surface);
-  color: var(--text);
-  border-color: var(--border);
-}
-
-.error {
-  color: var(--danger);
-  margin: 0;
-}
-
-.muted {
-  color: var(--text-secondary);
-}
-
-ul.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-ul.list li {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
 }
