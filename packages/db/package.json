@@ -13,6 +13,10 @@
     "./testing": {
       "types": "./dist/testing.d.ts",
       "default": "./dist/testing.js"
+    },
+    "./seed": {
+      "types": "./dist/seed.d.ts",
+      "default": "./dist/seed.js"
     }
   },
   "scripts": {
@@ -20,7 +24,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "generate": "drizzle-kit generate",
     "migrate": "tsx src/migrate.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "seed:dev": "tsx src/seed-dev.ts"
   },
   "dependencies": {
     "@destra/shared": "workspace:*",

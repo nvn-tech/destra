@@ -68,6 +68,8 @@ export const workspaces = pgTable("workspaces", {
   name: text("name").notNull(),
   autonomyLevel: autonomyLevelEnum("autonomy_level").notNull().default("assisted"),
   timezone: text("timezone").notNull().default("America/Sao_Paulo"),
+  /** Kill switch: while set, nothing is published for this workspace. */
+  publishingPausedAt: timestamp("publishing_paused_at", { withTimezone: true }),
   createdAt: createdAt(),
 });
 

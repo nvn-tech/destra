@@ -1,0 +1,1 @@
+ALTER TABLE "workspaces" ADD COLUMN "publishing_paused_at" timestamp with time zone;
