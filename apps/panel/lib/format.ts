@@ -61,3 +61,22 @@ const TAG_LABELS: Record<string, string> = {
 export function strategyLabels(tags: string[] = []): string[] {
   return tags.filter((t) => !t.startsWith("format:")).map((t) => TAG_LABELS[t] ?? t);
 }
+
+export function formatCount(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  return new Intl.NumberFormat("pt-BR", {
+    notation: value >= 10_000 ? "compact" : "standard",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+export function formatDate(iso: string | null, timeZone: string): string {
+  if (!iso) return "ainda não";
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone,
+  }).format(new Date(iso));
+}

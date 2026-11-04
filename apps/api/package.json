@@ -12,8 +12,10 @@
   },
   "dependencies": {
     "@destra/db": "workspace:*",
+    "@destra/meta": "workspace:*",
     "@destra/shared": "workspace:*",
     "@fastify/cors": "11.4.0",
+    "@temporalio/client": "1.25.0",
     "better-auth": "1.7.17",
     "drizzle-orm": "0.45.4",
     "fastify": "5.12.8",
