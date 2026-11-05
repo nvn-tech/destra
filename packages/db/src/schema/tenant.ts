@@ -123,8 +123,12 @@ export const connectedAccounts = pgTable(
     platformAccountId: text("platform_account_id").notNull(),
     /** Facebook Page id for Instagram accounts connected through Facebook Login. */
     linkedPageId: text("linked_page_id"),
-    /** Pointer into the secrets vault; raw tokens are never stored here. */
+    /** Meta app-scoped user id; used by the deauthorization and data-deletion callbacks. */
+    externalUserId: text("external_user_id"),
+    /** Pointer into the secrets vault (page token for Instagram); raw tokens are never stored here. */
     tokenRef: text("token_ref").notNull(),
+    /** Long-lived user token, used to refresh page tokens and list pages. */
+    userTokenRef: text("user_token_ref"),
     scopes: text("scopes").array().notNull().default([]),
     tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
     status: connectionStatusEnum("status").notNull().default("active"),
@@ -343,6 +347,13 @@ export const publications = pgTable(
     postId: uuid("post_id").references(() => posts.id),
     /** A retry must never double-post. */
     idempotencyKey: text("idempotency_key").notNull().unique(),
+    /** Instagram container (carousel or single image). Kept so retries reuse it instead of creating another. */
+    containerId: text("container_id"),
+    childContainerIds: text("child_container_ids").array().notNull().default([]),
+    /** Caption exactly as sent (with hashtags and identification); also used to reconcile lost responses. */
+    finalCaption: text("final_caption"),
+    permalink: text("permalink"),
+    attempts: integer("attempts").notNull().default(0),
     error: jsonb("error"),
     createdAt: createdAt(),
   },
@@ -396,3 +407,40 @@ export const auditLog = pgTable(
   },
   (t) => [index("audit_log_workspace_idx").on(t.workspaceId, t.id)],
 );
+
+/**
+ * Encrypted secrets (platform tokens). AES-256-GCM, key outside the database
+ * (see vault.ts). Rows are workspace-scoped and protected by RLS.
+ */
+export const secrets = pgTable("secrets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: workspaceId(),
+  kind: text("kind").notNull(),
+  keyId: text("key_id").notNull(),
+  iv: text("iv").notNull(),
+  authTag: text("auth_tag").notNull(),
+  ciphertext: text("ciphertext").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+/**
+ * A finished Facebook Login waiting for the user to pick which Instagram account
+ * to connect (only when the login returned more than one). Short-lived.
+ */
+export const metaOauthGrants = pgTable("meta_oauth_grants", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: workspaceId(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => authUsers.id, { onDelete: "cascade" }),
+  metaUserId: text("meta_user_id").notNull(),
+  userTokenSecretId: uuid("user_token_secret_id")
+    .notNull()
+    .references(() => secrets.id, { onDelete: "cascade" }),
+  scopes: text("scopes").array().notNull().default([]),
+  /** [{ pageId, pageName, instagramId, username, name, followers, canPublish }] — no secrets. */
+  candidates: jsonb("candidates").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: createdAt(),
+});

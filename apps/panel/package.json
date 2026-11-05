@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@destra/shared": "workspace:*",
     "@fontsource-variable/plus-jakarta-sans": "5.3.0",
     "@fontsource/jetbrains-mono": "5.3.0",
     "better-auth": "1.7.17",

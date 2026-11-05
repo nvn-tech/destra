@@ -6,6 +6,7 @@ import {
   CirclePause,
   CirclePlay,
   ClipboardCheck,
+  Link2,
   LogOut,
   type LucideIcon,
   Mic,
@@ -13,6 +14,7 @@ import {
   Scale,
   Sparkles,
   UserRound,
+  UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -43,7 +45,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const main: NavItem[] = [
     { label: "Fila de revisão", href: `${base}/revisao`, icon: ClipboardCheck },
-    { label: "Calendário", icon: CalendarDays },
+    { label: "Referências", href: `${base}/referencias`, icon: UsersRound },
+    { label: "Agendados", href: `${base}/agendados`, icon: CalendarDays },
     { label: "Inspiração", icon: Sparkles },
     { label: "Voz e estilo", icon: Mic },
     { label: "Resultados", icon: BarChart3 },
@@ -51,6 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   ];
   const account: NavItem[] = [
     { label: "Perfil profissional", href: `${base}/perfil`, icon: UserRound },
+    { label: "Conexões", href: `${base}/conexoes`, icon: Link2 },
     { label: "Trocar de espaço", href: "/workspaces", icon: Repeat },
   ];
 

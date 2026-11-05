@@ -14,7 +14,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     credentials: "include",
-    headers: { "content-type": "application/json", ...init.headers },
+    // Only declare JSON when there is a body: Fastify rejects an empty JSON body.
+    headers: init.body ? { "content-type": "application/json", ...init.headers } : init.headers,
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { error?: string };
@@ -123,4 +124,55 @@ export interface QueueItem {
   suggestedSlot: string | null;
   strategyTags: string[];
   variants: QueueVariant[];
+}
+
+export interface Connection {
+  id: string;
+  platform: string;
+  status: "active" | "expired" | "error" | "revoked";
+  platformAccountId: string;
+  linkedPageId: string | null;
+  username: string | null;
+  displayName: string | null;
+  followers: number | null;
+  postsImported: number;
+  lastSyncedAt: string | null;
+  createdAt: string;
+}
+
+export interface Candidate {
+  pageId: string;
+  pageName: string;
+  instagramId: string;
+  username: string;
+  name: string | null;
+  followers: number | null;
+  canPublish: boolean;
+}
+
+export type Influence = "baixa" | "media" | "alta";
+
+export interface Reference {
+  sourceAccountId: string;
+  username: string;
+  displayName: string | null;
+  status: string;
+  followers: number | null;
+  postsAnalyzed: number;
+  influence: Influence;
+  lastSyncedAt: string | null;
+}
+
+export interface Publication {
+  id: string;
+  status: "scheduled" | "publishing" | "published" | "failed" | "cancelled";
+  scheduledAt: string;
+  publishedAt: string | null;
+  permalink: string | null;
+  errorMessage: string | null;
+  attempts: number;
+  contentItemId: string;
+  title: string | null;
+  format: string;
+  label: string | null;
 }

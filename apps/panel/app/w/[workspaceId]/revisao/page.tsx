@@ -8,8 +8,14 @@ import { QueueList } from "@/components/review/queue-list";
 import { VariantPreview } from "@/components/review/variant-preview";
 import { Card, Chip, StatusBadge } from "@/components/ui";
 import { useWorkspace } from "@/components/workspace-context";
-import { ApiError, api, type QueueItem, type QueueVariant } from "@/lib/api";
-import { formatLabel, formatSlot, strategyLabels } from "@/lib/format";
+import { ApiError, api, type Connection, type QueueItem, type QueueVariant } from "@/lib/api";
+import {
+  formatLabel,
+  formatSlot,
+  fromLocalInput,
+  strategyLabels,
+  toLocalInput,
+} from "@/lib/format";
 
 /** Prefers a variant without alerts, then one to review; blocked variants come last. */
 function defaultVariant(item: QueueItem): QueueVariant | undefined {
@@ -25,6 +31,8 @@ export default function ReviewQueuePage() {
   const [attested, setAttested] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [instagramActive, setInstagramActive] = useState(false);
+  const [scheduleValue, setScheduleValue] = useState("");
 
   const load = useCallback(async () => {
     const data = await api<{ items: QueueItem[] }>(`/v1/workspaces/${workspace.id}/review-queue`);
@@ -34,11 +42,24 @@ export default function ReviewQueuePage() {
 
   useEffect(() => {
     load().catch(() => setNotice({ kind: "error", text: "Não foi possível carregar a fila." }));
-  }, [load]);
+    api<{ connections: Connection[] }>(`/v1/workspaces/${workspace.id}/connections`)
+      .then((d) =>
+        setInstagramActive(
+          d.connections.some((c) => c.platform === "instagram" && c.status === "active"),
+        ),
+      )
+      .catch(() => setInstagramActive(false));
+  }, [load, workspace.id]);
 
   const item = useMemo(() => items?.find((i) => i.id === itemId) ?? items?.[0], [items, itemId]);
   const variant =
     item?.variants.find((v) => v.id === variantId) ?? (item ? defaultVariant(item) : undefined);
+
+  // Default the schedule to the suggested slot of the selected post.
+  const suggestedSlot = item?.suggestedSlot ?? null;
+  useEffect(() => {
+    setScheduleValue(toLocalInput(suggestedSlot));
+  }, [suggestedSlot]);
 
   function selectItem(id: string) {
     setItemId(id);
@@ -59,17 +80,22 @@ export default function ReviewQueuePage() {
     setNotice({ kind: "ok", text });
   }
 
-  async function approve() {
+  async function approve(withSchedule: boolean) {
     if (!variant) return;
     setBusy(true);
     setNotice(null);
     try {
+      const scheduledAt = withSchedule && scheduleValue ? fromLocalInput(scheduleValue) : undefined;
       await api(`/v1/workspaces/${workspace.id}/variants/${variant.id}/approve`, {
         method: "POST",
-        body: JSON.stringify({ attestation: true }),
+        body: JSON.stringify(
+          scheduledAt ? { attestation: true, scheduledAt } : { attestation: true },
+        ),
       });
       await afterDecision(
-        "Post aprovado. O agendamento será ativado quando o Instagram estiver conectado.",
+        scheduledAt
+          ? `Post aprovado e agendado para ${formatSlot(scheduledAt, workspace.timezone)}.`
+          : "Post aprovado. Você pode agendá-lo depois.",
       );
     } catch (err) {
       setNotice({
@@ -212,6 +238,19 @@ export default function ReviewQueuePage() {
             attested={attested}
             onAttest={setAttested}
             busy={busy}
+            schedule={{
+              value: scheduleValue,
+              onChange: setScheduleValue,
+              unavailableReason: !instagramActive
+                ? {
+                    text: "Para agendar, conecte o Instagram.",
+                    href: `/w/${workspace.id}/conexoes`,
+                    linkText: "Conectar",
+                  }
+                : variant.format === "reel" || variant.format === "video"
+                  ? { text: "Reels ainda são publicados manualmente, a partir do roteiro." }
+                  : null,
+            }}
             onApprove={approve}
             onReject={reject}
           />
