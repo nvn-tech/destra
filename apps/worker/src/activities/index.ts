@@ -1,12 +1,15 @@
 import { auditLog, type Database } from "@destra/db";
 import { sql } from "drizzle-orm";
+import { createInstagramActivities, type MetaWorkerDeps } from "./instagram.js";
 
 /**
  * Activities run outside the workflow sandbox and may do I/O.
  * They are created with their dependencies so tests can pass their own.
  */
-export function createActivities(db: Database) {
+export function createActivities(db: Database, meta: MetaWorkerDeps | null = null) {
   return {
+    ...createInstagramActivities(db, meta),
+
     /** Confirms the worker can reach the database. */
     async checkDatabase(): Promise<{ ok: boolean; at: string }> {
       const result = await db.execute<{ now: string }>(sql`select now()::text as now`);

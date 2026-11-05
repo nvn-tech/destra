@@ -137,3 +137,16 @@ describe("professional profile", () => {
     expect(put.statusCode).toBe(400);
   });
 });
+
+describe("error handling", () => {
+  it("answers 400, not 500, for an empty JSON body", async () => {
+    const cookie = await signUp(h.app);
+    const response = await h.app.inject({
+      method: "POST",
+      url: "/v1/workspaces",
+      headers: { cookie, "content-type": "application/json" },
+      payload: "",
+    });
+    expect(response.statusCode).toBe(400);
+  });
+});
