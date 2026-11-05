@@ -46,12 +46,12 @@ All UI text is **Brazilian Portuguese**. Code, comments and docs are English.
 
 All work is on `main`. There are no open PRs or feature branches.
 
-| PR | Content |
-| --- | --- |
-| nvn-tech/destra#1 | Monorepo, DB/RLS, auth, worker, CI |
-| nvn-tech/destra#2 | Design system, review queue, profile, landing page |
+| PR                | Content                                                                                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------------------ |
+| nvn-tech/destra#1 | Monorepo, DB/RLS, auth, worker, CI                                                                           |
+| nvn-tech/destra#2 | Design system, review queue, profile, landing page                                                           |
 | nvn-tech/destra#3 | Instagram integration. It was merged into an already-merged stacked branch, so it reached `main` through #4. |
-| nvn-tech/destra#4 | Instagram integration + publishing + handoff docs |
+| nvn-tech/destra#4 | Instagram integration + publishing + handoff docs                                                            |
 
 Work in short branches off `main`, one PR each. If you must stack PRs, retarget each PR to `main` before merging it (`gh api -X PATCH repos/nvn-tech/destra/pulls/<n> -f base=main`). Never merge a PR into a branch that's already merged. `gh pr create` is unavailable in Claude Code cloud sessions; use `gh api repos/nvn-tech/destra/pulls` (REST) instead.
 
