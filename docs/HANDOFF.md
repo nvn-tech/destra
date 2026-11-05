@@ -42,16 +42,18 @@ All UI text is **Brazilian Portuguese**. Code, comments and docs are English.
 | Calendar, inspiration, voice, results, rules screens                                           | Not started ("Em breve" in the sidebar)                  | —                                                                                      |
 | Billing, onboarding steps 2–5, invitations                                                     | Not started                                              | —                                                                                      |
 
-### Pull requests (stacked, open)
+### History
 
-| PR                | Branch                         | Base                           | Content                                                              |
-| ----------------- | ------------------------------ | ------------------------------ | -------------------------------------------------------------------- |
-| nvn-tech/destra#1 | `claude/platform-foundation`   | `main`                         | Monorepo, DB/RLS, auth, worker, CI                                   |
-| nvn-tech/destra#2 | `claude/panel-design-system`   | `claude/platform-foundation`   | Design system, review queue, profile, landing                        |
-| nvn-tech/destra#3 | `claude/instagram-integration` | `claude/panel-design-system`   | Instagram connection, ingestion, references                          |
-| _(no PR yet)_     | `claude/publishing`            | `claude/instagram-integration` | Rendering, media store, scheduling, publish workflow, Agendados page |
+All work is on `main`. There are no open PRs or feature branches.
 
-Merge them in order. After each merge, retarget the next PR's base (`gh api -X PATCH repos/nvn-tech/destra/pulls/<n> -f base=main`). `gh pr create` is unavailable in Claude Code cloud sessions; use `gh api repos/nvn-tech/destra/pulls` (REST) instead.
+| PR | Content |
+| --- | --- |
+| nvn-tech/destra#1 | Monorepo, DB/RLS, auth, worker, CI |
+| nvn-tech/destra#2 | Design system, review queue, profile, landing page |
+| nvn-tech/destra#3 | Instagram integration. It was merged into an already-merged stacked branch, so it reached `main` through #4. |
+| nvn-tech/destra#4 | Instagram integration + publishing + handoff docs |
+
+Work in short branches off `main`, one PR each. If you must stack PRs, retarget each PR to `main` before merging it (`gh api -X PATCH repos/nvn-tech/destra/pulls/<n> -f base=main`). Never merge a PR into a branch that's already merged. `gh pr create` is unavailable in Claude Code cloud sessions; use `gh api repos/nvn-tech/destra/pulls` (REST) instead.
 
 ## 3. Architecture
 
@@ -200,19 +202,18 @@ Each package's tests create their own database (`destra_test_db`, `destra_test_a
 
 ## 7. Suggested next steps (in order)
 
-1. **Get the PR stack merged** and CI green on `main`. That's the first real run of the Temporal end-to-end test and of Postgres in CI.
-2. **Real Meta app in development mode:** connect a real account and fix whatever differs from `FakeGraph`. Then prepare App Review: a screencast, the privacy policy URL, and the deauthorize and data-deletion URLs from section 3.
-3. **Compliance engine (design doc §4):** deterministic checks (required fields, lexicons, patterns), claim extraction, LLM judges with rubrics, a fix loop, and a golden-set evaluation in CI. Replace the seeded checks with real `compliance_runs`. The rule pack needs legal sign-off.
-4. **Generation engine (design doc §6):**
+1. **Real Meta app in development mode:** connect a real account and fix whatever differs from `FakeGraph`. Then prepare App Review: a screencast, the privacy policy URL, and the deauthorize and data-deletion URLs from section 3.
+2. **Compliance engine (design doc §4):** deterministic checks (required fields, lexicons, patterns), claim extraction, LLM judges with rubrics, a fix loop, and a golden-set evaluation in CI. Replace the seeded checks with real `compliance_runs`. The rule pack needs legal sign-off.
+3. **Generation engine (design doc §6):**
    - Enrichment features and embeddings for imported posts.
    - Account and workspace style profiles.
    - A style card.
    - Angles → drafts → polish, 3 variants, and originality checks.
 
    This fills the review queue for real, replacing `seedDemoReviewQueue`. Use the latest Claude models via the Anthropic SDK, and record cost in `usage_ledger`.
-5. **Editing in the review screen:** apply suggestions, edit text, re-run compliance. The API needs a variant-update endpoint that resets `complianceStatus` to `pending`.
-6. **Onboarding steps 2–5** (connect, interests and references, voice sample, first drafts) and the remaining screens (calendar, results, rules/audit), following `stitch-design-brief.md` and the review in this repo's history.
-7. **Operations:**
+4. **Editing in the review screen:** apply suggestions, edit text, re-run compliance. The API needs a variant-update endpoint that resets `complianceStatus` to `pending`.
+5. **Onboarding steps 2–5** (connect, interests and references, voice sample, first drafts) and the remaining screens (calendar, results, rules/audit), following `stitch-design-brief.md` and the review in this repo's history.
+6. **Operations:**
    - Token-health job (refresh and warn before expiry).
    - LGPD retention job (`posts.raw_expires_at`, `post_media.expires_at`).
    - Crawl scheduler by `crawl_tier`.
