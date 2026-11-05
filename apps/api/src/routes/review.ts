@@ -1,30 +1,45 @@
+import { randomUUID } from "node:crypto";
 import {
   approvals,
   auditLog,
   complianceChecks,
   complianceRules,
   complianceRuns,
+  connectedAccounts,
   contentItems,
   contentVariants,
   type Database,
   professionalProfiles,
+  publications,
   withTenant,
 } from "@destra/db";
+import { instagramPublishPlan } from "@destra/meta";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import type { JobQueue } from "../jobs.js";
 import { type Guards, HttpError } from "../plugins/tenant.js";
+import { assertSchedulable } from "./publications.js";
 
 const workspaceParams = z.object({ workspaceId: z.uuid() });
 const variantParams = workspaceParams.extend({ variantId: z.uuid() });
 const itemParams = workspaceParams.extend({ itemId: z.uuid() });
 
 /** The doctor must confirm responsibility for every approval (CFM: the physician remains responsible). */
-const approveBody = z.object({ attestation: z.literal(true) });
+const approveBody = z.object({
+  attestation: z.literal(true),
+  /** Optional: approve and schedule in one step. */
+  scheduledAt: z.iso.datetime({ offset: true }).optional(),
+});
 const rejectBody = z.object({ comment: z.string().trim().max(1000).optional() });
 const publishingBody = z.object({ paused: z.boolean() });
 
-export async function reviewRoutes(app: FastifyInstance, db: Database, guards: Guards) {
+export async function reviewRoutes(
+  app: FastifyInstance,
+  db: Database,
+  guards: Guards,
+  jobs: JobQueue,
+) {
   /** Items waiting for review, each with its variants and the latest compliance checks. */
   app.get("/v1/workspaces/:workspaceId/review-queue", async (request) => {
     const { workspaceId } = workspaceParams.parse(request.params);
@@ -125,9 +140,11 @@ export async function reviewRoutes(app: FastifyInstance, db: Database, guards: G
   app.post("/v1/workspaces/:workspaceId/variants/:variantId/approve", async (request) => {
     const { workspaceId, variantId } = variantParams.parse(request.params);
     const access = await guards.requireWorkspace(request, workspaceId, "approver");
-    approveBody.parse(request.body);
+    const body = approveBody.parse(request.body);
+    const scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : null;
+    if (scheduledAt) assertSchedulable(scheduledAt);
 
-    return withTenant(db, access, async (tx) => {
+    const result = await withTenant(db, access, async (tx) => {
       const [variant] = await tx
         .select()
         .from(contentVariants)
@@ -187,8 +204,69 @@ export async function reviewRoutes(app: FastifyInstance, db: Database, guards: G
           attestation: "Revisei este conteúdo e sou responsável pela publicação.",
         },
       });
-      return { contentItemId: item.id, variantId, status: "approved" as const };
+      if (!scheduledAt)
+        return {
+          contentItemId: item.id,
+          variantId,
+          status: "approved" as const,
+          publicationId: null,
+        };
+
+      // Approve and schedule: needs an active Instagram connection and a format we can publish.
+      const [connection] = await tx
+        .select()
+        .from(connectedAccounts)
+        .where(
+          and(eq(connectedAccounts.platform, "instagram"), eq(connectedAccounts.status, "active")),
+        )
+        .limit(1);
+      if (!connection)
+        throw new HttpError(
+          409,
+          "Conecte o Instagram para agendar. Você pode aprovar sem agendar.",
+        );
+      const plan = instagramPublishPlan({
+        format: variant.format,
+        title: item.title,
+        previewLine: (variant.body as { previewLine?: string }).previewLine,
+        slides: (
+          variant.body as { slides?: { n: number; role: string; title: string; body: string }[] }
+        ).slides,
+      });
+      if (!plan.ok) throw new HttpError(422, plan.reason);
+      const [publication] = await tx
+        .insert(publications)
+        .values({
+          workspaceId,
+          variantId,
+          connectedAccountId: connection.id,
+          scheduledAt,
+          idempotencyKey: randomUUID(),
+        })
+        .returning({ id: publications.id });
+      await tx
+        .update(contentItems)
+        .set({ status: "scheduled", updatedAt: new Date() })
+        .where(eq(contentItems.id, item.id));
+      await tx.insert(auditLog).values({
+        workspaceId,
+        actor: access.userId,
+        action: "publication.scheduled",
+        entity: "publication",
+        entityId: publication?.id,
+        payload: { variantId, scheduledAt: scheduledAt.toISOString() },
+      });
+      return {
+        contentItemId: item.id,
+        variantId,
+        status: "scheduled" as const,
+        publicationId: publication?.id ?? null,
+      };
     });
+
+    if (result.publicationId)
+      await jobs.schedulePublication({ workspaceId, publicationId: result.publicationId });
+    return result;
   });
 
   app.post("/v1/workspaces/:workspaceId/content-items/:itemId/reject", async (request) => {

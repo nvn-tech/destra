@@ -1,5 +1,3 @@
-import type { ProfessionalProfile } from "./api";
-
 /** "ter., 12 nov. · 19:00" in the workspace's time zone. */
 export function formatSlot(iso: string | null, timeZone: string): string {
   if (!iso) return "Sem horário sugerido";
@@ -18,20 +16,8 @@ export function formatSlot(iso: string | null, timeZone: string): string {
   return `${day} · ${time}`;
 }
 
-/** Mandatory identification line, built from the profile (never written by the AI). */
-export function signatureLine(profile: ProfessionalProfile): string {
-  const rqes = profile.specialties
-    .filter((s) => s.rqe)
-    .map((s) => `RQE ${s.rqe}`)
-    .join(" · ");
-  return [
-    profile.fullName,
-    `${profile.council}-${profile.councilUf} ${profile.councilNumber}`,
-    rqes,
-  ]
-    .filter(Boolean)
-    .join(" | ");
-}
+/** Mandatory identification line, shared with the publisher so preview and post always match. */
+export { signatureLine } from "@destra/shared";
 
 export function wordCount(text: string): number {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
@@ -79,4 +65,16 @@ export function formatDate(iso: string | null, timeZone: string): string {
     minute: "2-digit",
     timeZone,
   }).format(new Date(iso));
+}
+
+/** ISO → value for <input type="datetime-local"> in the browser's time zone. */
+export function toLocalInput(iso: string | null): string {
+  const date = iso ? new Date(iso) : new Date(Date.now() + 86_400_000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** <input type="datetime-local"> value (browser time zone) → ISO with offset. */
+export function fromLocalInput(value: string): string {
+  return new Date(value).toISOString();
 }

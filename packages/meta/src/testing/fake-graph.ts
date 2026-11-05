@@ -36,6 +36,25 @@ export class FakeGraph {
   private accounts = new Map<string, FakeAccount>();
   private discovery = new Map<string, BusinessDiscoveryResult>();
   private revoked = new Set<string>();
+  /** Containers created through the publishing API. */
+  readonly containers = new Map<
+    string,
+    {
+      igUserId: string;
+      status: string;
+      children: string[];
+      caption: string;
+      imageUrl?: string;
+      polls: number;
+    }
+  >();
+  /** Number of status checks a container stays IN_PROGRESS before FINISHED. */
+  processingPolls = 0;
+  /** When true, the next media_publish succeeds but answers with an error (lost response). */
+  dropNextPublishResponse = false;
+  /** When set, the next container creation is rejected with this Graph error code. */
+  rejectNextContainer: number | null = null;
+  private published = 0;
   /** Code the fake login dialog returns (local end-to-end runs). */
   dialogCode = "";
   url = "";
@@ -164,6 +183,58 @@ export class FakeGraph {
       });
     }
 
+    const isPost = req.method === "POST";
+    const create = path.match(/^\/([^/]+)\/media$/);
+    if (isPost && create?.[1]) {
+      if (this.rejectNextContainer !== null) {
+        const code = this.rejectNextContainer;
+        this.rejectNextContainer = null;
+        return this.error(res, 400, code, "The aspect ratio is not supported.");
+      }
+      const id = `container-${this.containers.size + 1}`;
+      const failed = (params.image_url ?? "").includes("fail");
+      this.containers.set(id, {
+        igUserId: create[1],
+        status: failed ? "ERROR" : "IN_PROGRESS",
+        children: params.children ? params.children.split(",") : [],
+        caption: params.caption ?? "",
+        imageUrl: params.image_url,
+        polls: 0,
+      });
+      return this.send(res, 200, { id });
+    }
+
+    const publish = path.match(/^\/([^/]+)\/media_publish$/);
+    if (isPost && publish?.[1]) {
+      const container = this.containers.get(params.creation_id ?? "");
+      if (container?.status !== "FINISHED")
+        return this.error(res, 400, 9007, "Media is not ready to be published");
+      container.status = "PUBLISHED";
+      this.published += 1;
+      const mediaId = `published-${this.published}`;
+      const account = this.accounts.get(publish[1]);
+      account?.media.unshift({
+        id: mediaId,
+        media_type: container.children.length ? "CAROUSEL_ALBUM" : "IMAGE",
+        caption: container.caption,
+        permalink: `https://www.instagram.com/p/${mediaId}/`,
+        timestamp: new Date().toISOString(),
+      });
+      if (this.dropNextPublishResponse) {
+        this.dropNextPublishResponse = false;
+        return this.error(res, 500, 2, "Service temporarily unavailable");
+      }
+      return this.send(res, 200, { id: mediaId });
+    }
+
+    const limit = path.match(/^\/([^/]+)\/content_publishing_limit$/);
+    if (limit?.[1])
+      return this.send(res, 200, {
+        data: [
+          { quota_usage: this.published, config: { quota_total: 100, quota_duration: 86400 } },
+        ],
+      });
+
     const media = path.match(/^\/([^/]+)\/media$/);
     if (media?.[1]) {
       const account = this.accounts.get(media[1]);
@@ -196,6 +267,20 @@ export class FakeGraph {
     }
 
     const node = path.match(/^\/([^/]+)$/);
+    const container = node?.[1] ? this.containers.get(node[1]) : undefined;
+    if (container) {
+      if (container.status === "IN_PROGRESS") {
+        container.polls += 1;
+        if (container.polls > this.processingPolls) container.status = "FINISHED";
+      }
+      return this.send(res, 200, { id: node?.[1], status_code: container.status });
+    }
+    if (node?.[1] && params.fields === "permalink") {
+      return this.send(res, 200, {
+        id: node[1],
+        permalink: `https://www.instagram.com/p/${node[1]}/`,
+      });
+    }
     if (node?.[1]) {
       const discovery = params.fields?.match(/business_discovery\.username\(([^)]+)\)/);
       if (discovery?.[1]) {

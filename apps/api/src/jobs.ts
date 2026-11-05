@@ -6,6 +6,8 @@ import type { ApiEnv } from "./env.js";
 export interface JobQueue {
   backfillOwnAccount(input: { workspaceId: string; connectedAccountId: string }): Promise<void>;
   syncReferenceAccount(input: { workspaceId: string; sourceAccountId: string }): Promise<void>;
+  /** Starts (or keeps) the workflow that waits for the scheduled time and publishes. */
+  schedulePublication(input: { workspaceId: string; publicationId: string }): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -43,6 +45,17 @@ export class TemporalJobQueue implements JobQueue {
     });
   }
 
+  async schedulePublication(input: { workspaceId: string; publicationId: string }) {
+    const client = await this.getClient();
+    // The workflow re-reads the row on every wake-up, so a reschedule needs no new workflow.
+    await client.workflow.start("publishWorkflow", {
+      taskQueue: this.env.TEMPORAL_TASK_QUEUE,
+      workflowId: `publish-${input.publicationId}`,
+      workflowIdConflictPolicy: "USE_EXISTING",
+      args: [input],
+    });
+  }
+
   async close() {
     if (this.client) await (await this.client).connection.close();
   }
@@ -56,6 +69,12 @@ export class LoggingJobQueue implements JobQueue {
   }
   async syncReferenceAccount(input: { workspaceId: string; sourceAccountId: string }) {
     this.log.warn({ input }, "Temporal not configured: skipping reference sync");
+  }
+  async schedulePublication(input: { workspaceId: string; publicationId: string }) {
+    this.log.warn(
+      { input },
+      "Temporal not configured: publication will not be published automatically",
+    );
   }
   async close() {}
 }

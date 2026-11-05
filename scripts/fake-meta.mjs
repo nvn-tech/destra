@@ -49,7 +49,7 @@ graph.addDiscoverable("dra.referencia", {
 const url = await graph.start();
 // Re-expose on a fixed port for convenience.
 createServer((req, res) =>
-  fetch(url + req.url, { redirect: "manual" }).then(async (r) => {
+  fetch(url + req.url, { method: req.method, redirect: "manual" }).then(async (r) => {
     res.writeHead(r.status, Object.fromEntries(r.headers));
     res.end(Buffer.from(await r.arrayBuffer()));
   }),

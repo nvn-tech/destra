@@ -24,6 +24,10 @@ export const apiEnvShape = {
   /** 32 random bytes, base64. Encrypts platform tokens at rest. */
   TOKEN_ENCRYPTION_KEY: optional,
 
+  // Local media (development only): the worker writes slides here and the API serves them with signed URLs.
+  MEDIA_LOCAL_DIR: optional,
+  MEDIA_SIGNING_SECRET: optional,
+
   // Temporal. Without it, background jobs are logged and skipped (local development).
   TEMPORAL_ADDRESS: optional,
   TEMPORAL_NAMESPACE: z.string().default("default"),

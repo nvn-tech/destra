@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const main: NavItem[] = [
     { label: "Fila de revisão", href: `${base}/revisao`, icon: ClipboardCheck },
     { label: "Referências", href: `${base}/referencias`, icon: UsersRound },
-    { label: "Calendário", icon: CalendarDays },
+    { label: "Agendados", href: `${base}/agendados`, icon: CalendarDays },
     { label: "Inspiração", icon: Sparkles },
     { label: "Voz e estilo", icon: Mic },
     { label: "Resultados", icon: BarChart3 },

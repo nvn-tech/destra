@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@destra/db": "workspace:*",
+    "@destra/media": "workspace:*",
     "@destra/meta": "workspace:*",
     "@destra/shared": "workspace:*",
     "@fastify/cors": "11.4.0",

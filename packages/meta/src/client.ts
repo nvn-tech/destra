@@ -11,6 +11,8 @@ import type {
   TokenResponse,
 } from "./types.js";
 
+export type ContainerStatus = "IN_PROGRESS" | "FINISHED" | "PUBLISHED" | "ERROR" | "EXPIRED";
+
 const MEDIA_FIELDS =
   "id,caption,media_type,media_product_type,permalink,timestamp,like_count,comments_count,children{id,media_type}";
 
@@ -40,6 +42,7 @@ export class GraphClient {
     path: string,
     params: Record<string, string>,
     token?: string,
+    method: "GET" | "POST" = "GET",
   ): Promise<T> {
     const url = new URL(path.startsWith("http") ? path : `${this.base()}${path}`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
@@ -47,7 +50,7 @@ export class GraphClient {
       url.searchParams.set("access_token", token);
       url.searchParams.set("appsecret_proof", this.proof(token));
     }
-    const response = await this.fetchImpl(url);
+    const response = await this.fetchImpl(url, { method });
     const usage: Record<string, unknown> = {};
     for (const header of ["x-business-use-case-usage", "x-app-usage"]) {
       const value = response.headers.get(header);
@@ -113,6 +116,70 @@ export class GraphClient {
       userToken,
     );
     return page.data;
+  }
+
+  // ---------- Publishing ----------
+
+  /** One image container; `carouselItem` for children of a carousel (no caption). */
+  async createImageContainer(
+    igUserId: string,
+    token: string,
+    input: { imageUrl: string; caption?: string; carouselItem?: boolean },
+  ) {
+    const params: Record<string, string> = { image_url: input.imageUrl };
+    if (input.carouselItem) params.is_carousel_item = "true";
+    if (input.caption) params.caption = input.caption;
+    return this.request<{ id: string }>(`/${igUserId}/media`, params, token, "POST");
+  }
+
+  /** Carousel container from 2 to 10 child containers. */
+  async createCarouselContainer(
+    igUserId: string,
+    token: string,
+    input: { children: string[]; caption: string },
+  ) {
+    return this.request<{ id: string }>(
+      `/${igUserId}/media`,
+      { media_type: "CAROUSEL", children: input.children.join(","), caption: input.caption },
+      token,
+      "POST",
+    );
+  }
+
+  /** IN_PROGRESS while Meta fetches and processes the media; FINISHED when it can be published. */
+  async containerStatus(containerId: string, token: string) {
+    return this.request<{ id: string; status_code: ContainerStatus; status?: string }>(
+      `/${containerId}`,
+      { fields: "status_code,status" },
+      token,
+    );
+  }
+
+  async publishContainer(igUserId: string, token: string, containerId: string) {
+    return this.request<{ id: string }>(
+      `/${igUserId}/media_publish`,
+      { creation_id: containerId },
+      token,
+      "POST",
+    );
+  }
+
+  /** Posts published in the last 24 hours and the allowed total. */
+  async publishingLimit(igUserId: string, token: string): Promise<{ used: number; total: number }> {
+    const result = await this.request<{
+      data: { quota_usage: number; config?: { quota_total?: number } }[];
+    }>(`/${igUserId}/content_publishing_limit`, { fields: "quota_usage,config" }, token);
+    const row = result.data[0];
+    return { used: row?.quota_usage ?? 0, total: row?.config?.quota_total ?? 100 };
+  }
+
+  async mediaPermalink(mediaId: string, token: string): Promise<string | null> {
+    const result = await this.request<{ permalink?: string }>(
+      `/${mediaId}`,
+      { fields: "permalink" },
+      token,
+    );
+    return result.permalink ?? null;
   }
 
   // ---------- Instagram ----------

@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { createVault, type Database, parseVaultKey } from "@destra/db";
+import { LocalMediaStore } from "@destra/media/store";
 import { GraphClient, type MetaConfig } from "@destra/meta";
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -11,6 +12,7 @@ import { registerAuthRoutes } from "./plugins/auth-routes.js";
 import { createGuards, HttpError } from "./plugins/tenant.js";
 import { healthRoutes } from "./routes/health.js";
 import { instagramRoutes, type MetaDeps } from "./routes/instagram.js";
+import { publicationRoutes } from "./routes/publications.js";
 import { referenceRoutes } from "./routes/references.js";
 import { reviewRoutes } from "./routes/review.js";
 import { workspaceRoutes } from "./routes/workspaces.js";
@@ -78,11 +80,15 @@ export async function buildApp({ env, db, logger = true, jobs, graphFetch }: App
   await registerAuthRoutes(app, auth);
   await healthRoutes(app, db);
   await workspaceRoutes(app, db, guards);
-  await reviewRoutes(app, db, guards);
-
   const jobQueue =
     jobs ?? (env.TEMPORAL_ADDRESS ? new TemporalJobQueue(env) : new LoggingJobQueue(app.log));
   app.addHook("onClose", () => jobQueue.close());
+  await reviewRoutes(app, db, guards, jobQueue);
+  const localMedia =
+    env.MEDIA_LOCAL_DIR && env.MEDIA_SIGNING_SECRET
+      ? new LocalMediaStore(env.MEDIA_LOCAL_DIR, env.API_PUBLIC_URL, env.MEDIA_SIGNING_SECRET)
+      : null;
+  await publicationRoutes(app, db, guards, jobQueue, localMedia);
   const meta = createMetaDeps(env, graphFetch);
   await instagramRoutes(app, db, guards, jobQueue, {
     deps: meta,

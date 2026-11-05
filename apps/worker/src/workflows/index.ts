@@ -1,4 +1,4 @@
-import { proxyActivities } from "@temporalio/workflow";
+import { continueAsNew, proxyActivities, sleep } from "@temporalio/workflow";
 import type { Activities } from "../activities/index.js";
 
 const { checkDatabase, recordSystemEvent } = proxyActivities<Activities>({
@@ -44,4 +44,60 @@ export async function syncReferenceAccountWorkflow(input: {
   sourceAccountId: string;
 }) {
   return instagram.syncReferenceAccount(input);
+}
+
+const publicationState = proxyActivities<Activities>({
+  startToCloseTimeout: "30 seconds",
+}).publicationState;
+const { publishPublication } = proxyActivities<Activities>({
+  startToCloseTimeout: "10 minutes",
+  retry: {
+    maximumAttempts: 8,
+    initialInterval: "1 minute",
+    backoffCoefficient: 2,
+    maximumInterval: "30 minutes",
+    nonRetryableErrorTypes: ["MetaAuthError", "PublishRejected", "PublishingNotConfigured"],
+  },
+});
+
+const MAX_WAIT_MS = 6 * 3600_000;
+const PAUSED_RECHECK = "10 minutes";
+
+/**
+ * Waits until a publication is due, then publishes it. Re-reads the row on every
+ * wake-up, so rescheduling, cancelling and the kill switch take effect without signals.
+ */
+export async function publishWorkflow(
+  input: { workspaceId: string; publicationId: string },
+  iteration = 0,
+): Promise<string> {
+  for (let i = iteration; i < iteration + 50; i++) {
+    const state = await publicationState(input);
+    if (
+      state.status === "published" ||
+      state.status === "cancelled" ||
+      state.status === "failed" ||
+      !state.scheduledAt
+    ) {
+      return state.status;
+    }
+    if (state.paused) {
+      await sleep(PAUSED_RECHECK);
+      continue;
+    }
+    const wait = Date.parse(state.scheduledAt) - Date.now();
+    if (wait > 60_000) {
+      await sleep(Math.min(wait, MAX_WAIT_MS));
+      continue;
+    }
+    const result = await publishPublication(input);
+    if (result.outcome === "paused") {
+      await sleep(PAUSED_RECHECK);
+      continue;
+    }
+    if (result.outcome === "not_due") continue;
+    return result.outcome;
+  }
+  // Keep the event history small for posts scheduled far ahead.
+  return continueAsNew<typeof publishWorkflow>(input, iteration + 50);
 }

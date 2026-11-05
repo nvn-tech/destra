@@ -1,4 +1,5 @@
 import { createDb, createVault, parseVaultKey } from "@destra/db";
+import { LocalMediaStore, type MediaStore, S3MediaStore } from "@destra/media";
 import { GraphClient } from "@destra/meta";
 import { NativeConnection } from "@temporalio/worker";
 import { loadWorkerEnv } from "./env.js";
@@ -21,6 +22,17 @@ const meta =
       }
     : null;
 if (!meta) console.warn("Meta integration not configured: Instagram activities will fail fast.");
+
+const store: MediaStore | null = env.MEDIA_S3_BUCKET
+  ? new S3MediaStore(env.MEDIA_S3_BUCKET, {
+      region: env.MEDIA_S3_REGION,
+      endpoint: env.MEDIA_S3_ENDPOINT,
+    })
+  : env.MEDIA_LOCAL_DIR && env.MEDIA_PUBLIC_BASE_URL && env.MEDIA_SIGNING_SECRET
+    ? new LocalMediaStore(env.MEDIA_LOCAL_DIR, env.MEDIA_PUBLIC_BASE_URL, env.MEDIA_SIGNING_SECRET)
+    : null;
+if (!store) console.warn("Media storage not configured: publishing will fail fast.");
+const publishing = meta && store ? { ...meta, store } : null;
 const connection = await NativeConnection.connect({ address: env.TEMPORAL_ADDRESS });
 const worker = await createWorker({
   connection,
@@ -28,6 +40,7 @@ const worker = await createWorker({
   taskQueue: env.TEMPORAL_TASK_QUEUE,
   db: handle.db,
   meta,
+  publishing,
 });
 
 try {

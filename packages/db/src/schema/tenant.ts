@@ -347,6 +347,13 @@ export const publications = pgTable(
     postId: uuid("post_id").references(() => posts.id),
     /** A retry must never double-post. */
     idempotencyKey: text("idempotency_key").notNull().unique(),
+    /** Instagram container (carousel or single image). Kept so retries reuse it instead of creating another. */
+    containerId: text("container_id"),
+    childContainerIds: text("child_container_ids").array().notNull().default([]),
+    /** Caption exactly as sent (with hashtags and identification); also used to reconcile lost responses. */
+    finalCaption: text("final_caption"),
+    permalink: text("permalink"),
+    attempts: integer("attempts").notNull().default(0),
     error: jsonb("error"),
     createdAt: createdAt(),
   },

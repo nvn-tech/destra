@@ -23,6 +23,10 @@ export class RecordingJobQueue implements JobQueue {
   async syncReferenceAccount(input: { workspaceId: string; sourceAccountId: string }) {
     this.syncs.push(input);
   }
+  publications: { workspaceId: string; publicationId: string }[] = [];
+  async schedulePublication(input: { workspaceId: string; publicationId: string }) {
+    this.publications.push(input);
+  }
   async close() {}
 }
 

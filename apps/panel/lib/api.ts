@@ -162,3 +162,17 @@ export interface Reference {
   influence: Influence;
   lastSyncedAt: string | null;
 }
+
+export interface Publication {
+  id: string;
+  status: "scheduled" | "publishing" | "published" | "failed" | "cancelled";
+  scheduledAt: string;
+  publishedAt: string | null;
+  permalink: string | null;
+  errorMessage: string | null;
+  attempts: number;
+  contentItemId: string;
+  title: string | null;
+  format: string;
+  label: string | null;
+}
